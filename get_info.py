@@ -8,12 +8,12 @@ def get_daily_info(start_year, start_month, stock_id):
     url = 'http://www.twse.com.tw/ch/trading/exchange/STOCK_DAY/genpage/Report201606/201606_F3_1_8_1234.php?STK_NO={}&myear={}&mmon={}'.format(
         stock_id, start_year, start_month)
     r = requests.get(url=url)
-    return parse_stock_daily_info_specific_column(r.content)
+    return parse_stock_daily_info_row_first(r.content)
 
 
 # 表格標頭: 日期 成交股數 成交金額 開盤價 最高價 最低價 收盤價 漲跌價差 成交筆數
 # 只取 [日期, 成交股數, 收盤價] 這三種資訊
-def parse_stock_daily_info_specific_column(html_content):
+def parse_stock_daily_info_column_first(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     trade_table = soup.find('table', attrs={'class': 'board_trad'})
     # index 0, 1, 6
@@ -33,21 +33,29 @@ def parse_stock_daily_info_specific_column(html_content):
     return target_info
 
 
-def parse_stock_daily_info(html_content):
+# 表格標頭: 日期 成交股數 成交金額 開盤價 最高價 最低價 收盤價 漲跌價差 成交筆數
+# 只取 [日期, 成交股數, 收盤價] 這三種資訊
+def parse_stock_daily_info_row_first(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     trade_table = soup.find('table', attrs={'class': 'board_trad'})
-    table_result = []
+    # index 0, 1, 6
+    columns = [td.find('div').string for td in trade_table.find('tr', attrs={'bgcolor': '#EBDCC9'}).find_all('td')]
+    using_info_index = ['日期', '成交股數', '收盤價']
+    table_result = []  # input dict
     for tr in trade_table.find_all('tr', attrs={'bgcolor': '#FFFFFF'}):
-        tr_result = []
-        for td in tr.find_all('td'):
-            if td.string is None:
-                tag_string = td.find('div').string
-                print(td.find('div').string)
+        tr_result = {}
+        td = tr.find_all('td')
+        for key in using_info_index:
+            col_index = columns.index(key)
+            if td[col_index].string is None:
+                tag_string = td[col_index].find('div').string
+                print(td[col_index].find('div').string)
             else:
-                tag_string = td.string
-                print(td.string)
-            tr_result.append(tag_string)
+                tag_string = td[col_index].string
+                print(td[col_index].string)
+            tr_result[key] = tag_string
         table_result.append(tr_result)
+    print(table_result)
     return table_result
 
 
@@ -69,3 +77,4 @@ def parse_stock_daily_info(html_content):
 
 if '__main__' == __name__:
     get_daily_info(2016, 6, 1234)
+    # todo save to sqlite
