@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 import requests
+import save_data
 
 
 # log http://stackoverflow.com/questions/21069283/beautifulsoup-get-all-the-values-of-a-particular-column
@@ -13,6 +14,7 @@ def get_daily_info(start_year, start_month, stock_id):
 
 # 表格標頭: 日期 成交股數 成交金額 開盤價 最高價 最低價 收盤價 漲跌價差 成交筆數
 # 只取 [日期, 成交股數, 收盤價] 這三種資訊
+# return{'日期': [], '成交股數': [], '收盤價': []}
 def parse_stock_daily_info_column_first(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     trade_table = soup.find('table', attrs={'class': 'board_trad'})
@@ -29,12 +31,13 @@ def parse_stock_daily_info_column_first(html_content):
         else:
             target_info[key] = [td[column_index].string for td in
                                 [tr.find_all('td') for tr in trade_table.find_all('tr', attrs={'bgcolor': '#FFFFFF'})]]
-    print(target_info)
+    # print(target_info)
     return target_info
 
 
 # 表格標頭: 日期 成交股數 成交金額 開盤價 最高價 最低價 收盤價 漲跌價差 成交筆數
 # 只取 [日期, 成交股數, 收盤價] 這三種資訊
+# return[{'日期': str, '成交股數': str('123,123'), '收盤價': str('123.123')}]*n
 def parse_stock_daily_info_row_first(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     trade_table = soup.find('table', attrs={'class': 'board_trad'})
@@ -49,13 +52,13 @@ def parse_stock_daily_info_row_first(html_content):
             col_index = columns.index(key)
             if td[col_index].string is None:
                 tag_string = td[col_index].find('div').string
-                print(td[col_index].find('div').string)
+                # print(td[col_index].find('div').string)
             else:
                 tag_string = td[col_index].string
-                print(td[col_index].string)
+                # print(td[col_index].string)
             tr_result[key] = tag_string
         table_result.append(tr_result)
-    print(table_result)
+    # print(table_result)
     return table_result
 
 
@@ -76,5 +79,5 @@ def parse_stock_daily_info_row_first(html_content):
 #     f.write(r.content)
 
 if '__main__' == __name__:
-    get_daily_info(2016, 6, 1234)
-    # todo save to sqlite
+    info = get_daily_info(2016, 6, 1234)
+    save_data.insert_daily_info(1234, info)
