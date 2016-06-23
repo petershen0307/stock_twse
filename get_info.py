@@ -1,3 +1,4 @@
+import datetime
 from bs4 import BeautifulSoup
 import requests
 import save_data
@@ -5,9 +6,9 @@ import save_data
 
 # log http://stackoverflow.com/questions/21069283/beautifulsoup-get-all-the-values-of-a-particular-column
 # 從臺灣證交所TWSE取得上市公司每日的成交
-def get_daily_info(start_year, start_month, stock_id):
-    url = 'http://www.twse.com.tw/ch/trading/exchange/STOCK_DAY/genpage/Report201606/201606_F3_1_8_1234.php?STK_NO={}&myear={}&mmon={}'.format(
-        stock_id, start_year, start_month)
+def get_daily_info(stock_id, start_year, start_month):
+    url = 'http://www.twse.com.tw/ch/trading/exchange/STOCK_DAY/genpage/Report{y}{m:02d}/{y}{m:02d}_F3_1_8_{s}.php'.format(
+        s=stock_id, y=start_year, m=start_month)
     r = requests.get(url=url)
     return parse_stock_daily_info_row_first(r.content)
 
@@ -41,6 +42,8 @@ def parse_stock_daily_info_column_first(html_content):
 def parse_stock_daily_info_row_first(html_content):
     soup = BeautifulSoup(html_content, 'html.parser')
     trade_table = soup.find('table', attrs={'class': 'board_trad'})
+    if trade_table is None:
+        return None
     # index 0, 1, 6
     columns = [td.find('div').string for td in trade_table.find('tr', attrs={'bgcolor': '#EBDCC9'}).find_all('td')]
     using_info_index = ['日期', '成交股數', '收盤價']
@@ -62,6 +65,24 @@ def parse_stock_daily_info_row_first(html_content):
     return table_result
 
 
+def get_history_info(stock_id):
+    month_start = datetime.date.today().month
+    year_start = datetime.date.today().year
+    for year in range(year_start, 1992, -1):
+        for month in range(month_start, 0, -1):
+            stock_daily_info = get_daily_info(stock_id, year, month)
+            if stock_daily_info is None:
+                print('first date of stock({})'.format(stock_id), 'is year:', year, 'month:', month+1)
+                break  # 會跳過month這層loop的else, 讓year這層loop會跑到break
+            else:
+                save_data.insert_daily_info(stock_id, stock_daily_info)
+        else:
+            # set to default
+            month_start = 12
+            continue  # 正常結束的時候會執行, 會讓year這層for loop不會執行到break
+        break  # 只有month這層loop跑到break的時候才會被執行到
+
+
 # 測試的程式碼, 感覺要從下面這個網址然後轉跳到正確的網址,但是目前還不知道怎麼做
 # POST  to http://www.twse.com.tw/ch/trading/exchange/STOCK_DAY/STOCK_DAYMAIN.php
 # myear=2016
@@ -79,5 +100,7 @@ def parse_stock_daily_info_row_first(html_content):
 #     f.write(r.content)
 
 if '__main__' == __name__:
-    info = get_daily_info(2016, 6, 1234)
-    save_data.insert_daily_info(1234, info)
+    get_history_info(1234)
+    # info = get_daily_info(1234, 2010, 5)
+    # print(info)
+    # save_data.insert_daily_info(1234, info)
